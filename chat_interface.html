@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Chat System</title>
+  
+  <!-- Load React, React DOM, and Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+    }
+    
+    .chat-container {
+      max-width: 800px;
+      margin: 20px auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+    }
+    
+    .chat-header {
+      padding: 15px;
+      background-color: #2196F3;
+      color: white;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .ticket-id {
+      font-size: 14px;
+      background-color: rgba(255,255,255,0.2);
+      padding: 5px 10px;
+      border-radius: 15px;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .message {
+      max-width: 80%;
+      padding: 10px 15px;
+      border-radius: 18px;
+      position: relative;
+      line-height: 1.5;
+    }
+    
+    .agent-message {
+      align-self: flex-start;
+      background-color: #e9e9eb;
+      color: #000;
+      border-bottom-left-radius: 5px;
+    }
+    
+    .user-message {
+      align-self: flex-end;
+      background-color: #0b93f6;
+      color: white;
+      border-bottom-right-radius: 5px;
+    }
+    
+    .system-message {
+      align-self: center;
+      background-color: #f0f0f0;
+      color: #666;
+      font-style: italic;
+      border-radius: 10px;
+      padding: 8px 15px;
+      font-size: 14px;
+    }
+    
+    .chat-input {
+      display: flex;
+      padding: 15px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .chat-input textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      resize: none;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    
+    .chat-input button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 0 20px;
+      margin-left: 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .chat-input button:hover {
+      background-color: #0b7dda;
+    }
+    
+    .chat-input button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    .results-panel {
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-top: 1px solid #e0e0e0;
+      display: none;
+    }
+    
+    .results-panel.visible {
+      display: block;
+    }
+    
+    .results-panel h3 {
+      margin-top: 0;
+      font-size: 16px;
+    }
+    
+    .results-tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 15px;
+    }
+    
+    .tab {
+      padding: 8px 15px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    
+    .tab.active {
+      border-bottom: 2px solid #2196F3;
+      font-weight: bold;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .processing-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 15px 0;
+    }
+    
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: #2196F3;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite ease-in-out;
+    }
+    
+    .dot:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+    
+    .dot:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+    }
+    
+    pre {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Load our React component -->
+  <script type="text/babel">
+    const ChatInterface = () => {
+      const [ticketId, setTicketId] = React.useState('TICKET-' + Math.floor(Math.random() * 1000).toString().padStart(3, '0'));
+      const [messages, setMessages] = React.useState([]);
+      const [inputText, setInputText] = React.useState('');
+      const [isProcessing, setIsProcessing] = React.useState(false);
+      const [jobId, setJobId] = React.useState(null);
+      const [results, setResults] = React.useState(null);
+      const [refreshInterval, setRefreshInterval] = React.useState(null);
+      const [activeTab, setActiveTab] = React.useState('summary');
+      const messagesEndRef = React.useRef(null);
+      
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      };
+      
+      React.useEffect(() => {
+        // Initialize conversation with agent message
+        setMessages([
+          { 
+            type: 'agent', 
+            text: 'Hello! I\'m your support assistant. How can I help you today?' 
+          },
+          {
+            type: 'system',
+            text: `Your ticket ID is ${ticketId}`
+          }
+        ]);
+      }, []);
+      
+      React.useEffect(() => {
+        scrollToBottom();
+      }, [messages]);
+      
+      // Clean up interval on component unmount
+      React.useEffect(() => {
+        return () => {
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+          }
+        };
+      }, [refreshInterval]);
+      
+      const handleSendMessage = async () => {
+        if (!inputText.trim()) return;
+        
+        // Add user message to chat
+        const newMessages = [...messages, { type: 'user', text: inputText }];
+        setMessages(newMessages);
+        setInputText('');
+        
+        // If this is the first user message, begin processing
+        if (!isProcessing && !jobId) {
+          // Add waiting message
+          setMessages([...newMessages, { 
+            type: 'agent', 
+            text: 'Thanks for sharing your issue. I\'m processing your request and will get back to you in 2-3 minutes. A team of specialized agents are analyzing your case.'
+          }]);
+          
+          setIsProcessing(true);
+          
+          // Prepare conversation text (combine all messages)
+          const conversationText = newMessages
+            .map(msg => {
+              if (msg.type === 'agent') return `Agent: ${msg.text}`;
+              if (msg.type === 'user') return `Customer: ${msg.text}`;
+              return '';
+            })
+            .filter(text => text !== '')
+            .join('\n\n');
+          
+          try {
+            // Submit the ticket
+            const response = await fetch('http://127.0.0.1:8001/process_tickets', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                tickets: [
+                  {
+                    ticket_id: ticketId,
+                    conversation: conversationText,
+                    metadata: {
+                      priority: "medium"
+                    }
+                  }
+                ]
+              }),
+            });
+            
+            const data = await response.json();
+            setJobId(data.job_id);
+            
+            // Start polling for results
+            const interval = setInterval(() => {
+              checkJobStatus(data.job_id);
+            }, 3000);
+            
+            setRefreshInterval(interval);
+          } catch (err) {
+            setMessages(prev => [...prev, { 
+              type: 'system', 
+              text: `Error: ${err.message}` 
+            }]);
+            setIsProcessing(false);
+          }
+        }
+      };
+      
+      const checkJobStatus = async (id) => {
+        try {
+          const response = await fetch(`http://127.0.0.1:8001/job_status/${id}`, {
+            method: 'GET',
+          });
+          
+          const data = await response.json();
+          
+          // Check if processing is complete
+          const ticket = data.results[0];
+          if (ticket && ticket.status === 'completed') {
+            setResults(ticket.results);
+            clearInterval(refreshInterval);
+            setRefreshInterval(null);
+            setIsProcessing(false);
+            
+            // Add final message from agent
+            const summaryText = ticket.results.summary.error 
+              ? "I couldn't summarize your issue properly, but here's what I understand:" 
+              : ticket.results.summary.summary;
+              
+            setMessages(prev => [...prev, { 
+              type: 'agent', 
+              text: `I've completed analyzing your issue. ${summaryText}\n\nBased on my analysis, I've routed this to the appropriate team and provided recommendations. You can view the full details in the results panel below.` 
+            }]);
+          }
+        } catch (err) {
+          console.error("Error checking job status:", err);
+        }
+      };
+      
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSendMessage();
+        }
+      };
+      
+      return (
+        <div className="chat-container">
+          <div className="chat-header">
+            <h2>Customer Support</h2>
+            <div className="ticket-id">Ticket: {ticketId}</div>
+          </div>
+          
+          <div className="chat-messages">
+            {messages.map((message, index) => (
+              <div key={index} className={`message ${message.type}-message`}>
+                {message.text}
+              </div>
+            ))}
+            
+            {isProcessing && (
+              <div className="processing-indicator">
+                <div className="dot"></div>
+                <div className="dot"></div>
+                <div className="dot"></div>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+          
+          <div className="chat-input">
+            <textarea 
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message here..."
+              disabled={isProcessing}
+              rows={2}
+            />
+            <button 
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || isProcessing}
+            >
+              Send
+            </button>
+          </div>
+          
+          {results && (
+            <div className={`results-panel ${results ? 'visible' : ''}`}>
+              <h3>Analysis Results</h3>
+              
+              <div className="results-tabs">
+                <div 
+                  className={`tab ${activeTab === 'summary' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('summary')}
+                >
+                  Summary
+                </div>
+                <div 
+                  className={`tab ${activeTab === 'routing' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('routing')}
+                >
+                  Routing
+                </div>
+                <div 
+                  className={`tab ${activeTab === 'recommendations' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('recommendations')}
+                >
+                  Recommendations
+                </div>
+                <div 
+                  className={`tab ${activeTab === 'estimation' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('estimation')}
+                >
+                  Time Estimation
+                </div>
+                <div 
+                  className={`tab ${activeTab === 'insights' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('insights')}
+                >
+                  Final Insights
+                </div>
+              </div>
+              
+              <div className={`tab-content ${activeTab === 'summary' ? 'active' : ''}`}>
+                <h4>Issue Summary</h4>
+                <pre>{JSON.stringify(results.summary, null, 2)}</pre>
+              </div>
+              
+              <div className={`tab-content ${activeTab === 'routing' ? 'active' : ''}`}>
+                <h4>Ticket Routing</h4>
+                <pre>{JSON.stringify(results.routing, null, 2)}</pre>
+              </div>
+              
+              <div className={`tab-content ${activeTab === 'recommendations' ? 'active' : ''}`}>
+                <h4>Recommendations</h4>
+                <pre>{JSON.stringify(results.recommendations, null, 2)}</pre>
+              </div>
+              
+              <div className={`tab-content ${activeTab === 'estimation' ? 'active' : ''}`}>
+                <h4>Time Estimation</h4>
+                <pre>{JSON.stringify(results.estimation, null, 2)}</pre>
+              </div>
+              
+              <div className={`tab-content ${activeTab === 'insights' ? 'active' : ''}`}>
+                <h4>Final Insights</h4>
+                <div style={{whiteSpace: 'pre-wrap'}}>{results.final_insights}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+    
+    // Render the component
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ChatInterface />);
+  </script>
+</body>
+</html> 

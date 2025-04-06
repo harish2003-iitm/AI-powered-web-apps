@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support Chat System</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <div id="chat-container" class="chat-container">
+    <div class="chat-header">
+      <h2>Customer Support</h2>
+      <div id="ticket-id" class="ticket-id">Ticket: TICKET-000</div>
+    </div>
+    
+    <div id="chat-messages" class="chat-messages">
+      <!-- Messages will be added here dynamically -->
+    </div>
+    
+    <div class="chat-input">
+      <textarea 
+        id="message-input"
+        placeholder="Type your message here..."
+        rows="2"
+      ></textarea>
+      <button id="send-button">Send</button>
+    </div>
+    
+    <div id="results-panel" class="results-panel">
+      <h3>Analysis Results</h3>
+      
+      <div class="results-tabs">
+        <div class="tab active" data-tab="summary">Summary</div>
+        <div class="tab" data-tab="routing">Routing</div>
+        <div class="tab" data-tab="recommendations">Recommendations</div>
+        <div class="tab" data-tab="estimation">Time Estimation</div>
+        <div class="tab" data-tab="insights">Final Insights</div>
+      </div>
+      
+      <div id="summary-content" class="tab-content active">
+        <h4>Issue Summary</h4>
+        <pre id="summary-data"></pre>
+      </div>
+      
+      <div id="routing-content" class="tab-content">
+        <h4>Ticket Routing</h4>
+        <pre id="routing-data"></pre>
+      </div>
+      
+      <div id="recommendations-content" class="tab-content">
+        <h4>Recommendations</h4>
+        <pre id="recommendations-data"></pre>
+      </div>
+      
+      <div id="estimation-content" class="tab-content">
+        <h4>Time Estimation</h4>
+        <pre id="estimation-data"></pre>
+      </div>
+      
+      <div id="insights-content" class="tab-content">
+        <h4>Final Insights</h4>
+        <div id="insights-data" style="white-space: pre-wrap;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="scripts/chat.js"></script>
+</body>
+</html> 

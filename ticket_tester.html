@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Processing System</title>
+  
+  <!-- Load React, React DOM, and Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .ticket-submitter {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-right: 5px;
+    }
+    
+    button:hover {
+      background-color: #45a049;
+    }
+    
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+    
+    .results-section {
+      margin-top: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+    }
+    
+    pre {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    
+    .sample-buttons {
+      margin-bottom: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      border: 1px solid #eee;
+    }
+    
+    .sample-buttons p {
+      margin-top: 0;
+      font-weight: bold;
+    }
+    
+    .sample-btn {
+      background-color: #2196F3;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .sample-btn:hover {
+      background-color: #0b7dda;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Load our React component -->
+  <script type="text/babel">
+    // TicketSubmitter Component
+    const TicketSubmitter = () => {
+      const [ticketId, setTicketId] = React.useState('TICKET-' + Math.floor(Math.random() * 1000).toString().padStart(3, '0'));
+      const [conversation, setConversation] = React.useState('');
+      const [priority, setPriority] = React.useState('medium');
+      const [jobId, setJobId] = React.useState('');
+      const [results, setResults] = React.useState(null);
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState('');
+      const [refreshInterval, setRefreshInterval] = React.useState(null);
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        
+        try {
+          const response = await fetch('http://127.0.0.1:8001/process_tickets', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              tickets: [
+                {
+                  ticket_id: ticketId,
+                  conversation: conversation,
+                  metadata: {
+                    priority: priority
+                  }
+                }
+              ]
+            }),
+          });
+          
+          const data = await response.json();
+          setJobId(data.job_id);
+          
+          // Start polling for results
+          const interval = setInterval(() => {
+            checkJobStatus(data.job_id);
+          }, 3000);
+          
+          setRefreshInterval(interval);
+        } catch (err) {
+          setError('Failed to submit ticket: ' + err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      const checkJobStatus = async (id) => {
+        try {
+          const response = await fetch(`http://127.0.0.1:8001/job_status/${id}`, {
+            method: 'GET',
+          });
+          
+          const data = await response.json();
+          setResults(data);
+          
+          // If all tickets are processed, stop polling
+          const allCompleted = data.results.every(ticket => 
+            ticket.status === 'completed' || ticket.status === 'failed'
+          );
+          
+          if (allCompleted && refreshInterval) {
+            clearInterval(refreshInterval);
+            setRefreshInterval(null);
+          }
+        } catch (err) {
+          setError('Failed to check job status: ' + err.message);
+        }
+      };
+      
+      // Clean up interval on component unmount
+      React.useEffect(() => {
+        return () => {
+          if (refreshInterval) {
+            clearInterval(refreshInterval);
+          }
+        };
+      }, [refreshInterval]);
+
+      // Sample conversations
+      const sampleConversations = [
+        `Customer: Hi, I've been trying to access the admin dashboard for the past hour, but I keep getting an 'Access Denied' error.
+Agent: I'm sorry to hear that. Can you tell me what user role you have?
+Customer: I'm an admin user and I've been able to access it before. This just started happening after the recent system update.
+Agent: Thank you for that information. Let me check what might be causing this issue.`,
+
+        `Customer: The payment gateway is showing an error when I try to process transactions.
+Agent: I understand this is frustrating. What error message are you seeing exactly?
+Customer: It says "Transaction Failed: Invalid Authentication" but I'm sure my credentials are correct.
+Agent: When did you first notice this issue?
+Customer: It started about 2 hours ago. We've lost several sales because of it.`,
+
+        `Customer: Hello, I need to reset my password but I'm not receiving the reset email.
+Agent: I'd be happy to help with that. Can you confirm the email address you're using?
+Customer: It's johndoe@example.com
+Agent: Thanks. How long have you been waiting for the reset email?
+Customer: About 20 minutes now. I've checked my spam folder too.`
+      ];
+
+      const loadSample = (index) => {
+        setConversation(sampleConversations[index]);
+      };
+      
+      return (
+        <div className="ticket-submitter">
+          <h1>Ticket Submission System</h1>
+          
+          <div className="sample-buttons">
+            <p>Load sample conversation: </p>
+            <button type="button" onClick={() => loadSample(0)} className="sample-btn">Access Denied Issue</button>
+            <button type="button" onClick={() => loadSample(1)} className="sample-btn">Payment Gateway Issue</button>
+            <button type="button" onClick={() => loadSample(2)} className="sample-btn">Password Reset Issue</button>
+          </div>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>
+                Ticket ID:
+                <input 
+                  type="text" 
+                  value={ticketId} 
+                  onChange={(e) => setTicketId(e.target.value)} 
+                  required 
+                />
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label>
+                Conversation:
+                <textarea 
+                  value={conversation} 
+                  onChange={(e) => setConversation(e.target.value)} 
+                  required 
+                  rows={10}
+                  placeholder="Enter the customer conversation here..."
+                />
+              </label>
+            </div>
+            
+            <div className="form-group">
+              <label>
+                Priority:
+                <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </label>
+            </div>
+            
+            <button type="submit" disabled={loading}>
+              {loading ? 'Submitting...' : 'Submit Ticket'}
+            </button>
+          </form>
+          
+          {error && <div className="error">{error}</div>}
+          
+          {jobId && (
+            <div className="results-section">
+              <h2>Job ID: {jobId}</h2>
+              <p>Checking results... (refreshes automatically every 3 seconds)</p>
+              
+              {results && (
+                <div className="job-results">
+                  <h3>Results:</h3>
+                  <pre>{JSON.stringify(results, null, 2)}</pre>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    };
+    
+    // Render the component
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<TicketSubmitter />);
+  </script>
+</body>
+</html> 
